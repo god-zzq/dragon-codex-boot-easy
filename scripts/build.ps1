@@ -18,6 +18,7 @@ foreach ($name in @('WindowsBase.dll','PresentationCore.dll','PresentationFramew
 }
 $argsList = @('/nologo','/target:winexe','/platform:x64','/optimize+',('/win32manifest:' + (Join-Path $repoRoot 'src/app.manifest')),('/out:' + (Join-Path $outputRoot 'DragonCodexBoot.exe')))
 foreach ($reference in $references) { $argsList += '/reference:' + $reference }
+if (!$IconPath) { $IconPath = Join-Path $repoRoot 'assets/dragon.ico' }
 if ($IconPath) {
     $resolvedIcon = (Resolve-Path -LiteralPath $IconPath).Path
     $argsList += '/win32icon:' + $resolvedIcon

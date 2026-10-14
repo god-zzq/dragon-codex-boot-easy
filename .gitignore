@@ -20,3 +20,4 @@ launcher.json
 .env.*
 *.pem
 *.key
+!assets/dragon.ico
