@@ -3,6 +3,10 @@ $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $files=@(& git -c core.quotePath=false -C $repoRoot ls-files)
 if ($LASTEXITCODE -ne 0 -or $files.Count -eq 0) { throw 'No tracked repository files. Initialize and stage the clean source first.' }
 foreach ($name in $files) {
+    if ($name -in @('assets/dragon.ico','assets/dragon.png')) {
+        if ((Get-Item -LiteralPath (Join-Path $repoRoot $name)).Length -gt 1MB) { throw 'Public icon unexpectedly large.' }
+        continue
+    }
     if ($name -eq 'media/startup.mp4') {
         if ((Get-Item -LiteralPath (Join-Path $repoRoot $name)).Length -ge 100MB) { throw 'Demo video exceeds the regular Git file limit.' }
         continue
@@ -54,5 +58,5 @@ try {
 } finally { $archive.Dispose() }
 $expected=(Get-Content -LiteralPath ($zip.FullName+'.sha256') -Raw).Trim().Split(' ')[0]
 if ($expected -ine (Get-FileHash -LiteralPath $zip.FullName).Hash) { throw 'Archive hash mismatch.' }
-Write-Output ('PASS: '+$files.Count+' tracked files; only the approved demo video included; private paths and credential markers excluded; package entries and hashes checked.')
+Write-Output ('PASS: '+$files.Count+' tracked files; approved demo video and project icon included; private paths and credential markers excluded; package entries and hashes checked.')
 

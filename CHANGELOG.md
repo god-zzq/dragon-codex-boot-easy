@@ -1,3 +1,7 @@
+## 0.3.3
+
+- Bundle an original purple dragon-girl icon and allow only its two named public assets in repository verification.
+
 ## 0.3.2
 
 - Always activate Codex through Windows application identity; avoid direct MSIX executable launch and profile separation.
