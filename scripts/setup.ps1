@@ -63,7 +63,7 @@ foreach($path in $links){if((Test-Path -LiteralPath $path) -and !(OwnedShortcut 
 if(@(Get-Process -Name 'DragonCodexBoot' -ErrorAction SilentlyContinue).Count){throw '请先等启动动画结束，再安装或更新。'}
 New-Item -ItemType Directory -Path $InstallRoot,$DesktopRoot,$ProgramsRoot -Force | Out-Null
 $files=New-Object 'System.Collections.Generic.List[string]'
-foreach($name in @('DragonCodexBoot.exe','launcher.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md','VERSION','Start.cmd','Uninstall.cmd')){
+foreach($name in @('DragonCodexBoot.exe','launcher.json','README.md','LICENSE','THIRD_PARTY_NOTICES.md','VERSION','Start.cmd','Repair-Startup.cmd','Uninstall.cmd')){
  if(Test-Path -LiteralPath (Join-Path $SourceRoot $name)){$files.Add($name)}
 }
 foreach($folder in @('media','scripts','docs')){

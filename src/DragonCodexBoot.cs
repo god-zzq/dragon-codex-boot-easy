@@ -18,14 +18,15 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("Dragon Codex Boot")]
 [assembly: AssemblyProduct("Dragon Codex Boot")]
 [assembly: AssemblyDescription("Community animation launcher for the Codex desktop client")]
-[assembly: AssemblyVersion("0.3.1.0")]
-[assembly: AssemblyFileVersion("0.3.1.0")]
+[assembly: AssemblyVersion("0.3.2.0")]
+[assembly: AssemblyFileVersion("0.3.2.0")]
 
 namespace DragonCodexBoot {
  public sealed class Config {
-  public Config() { AutoReplaceEntrypoints=false; ScanAllLocalDrives=false; }
+  public Config() { AutoReplaceEntrypoints=false; ScanAllLocalDrives=false; FastStart=true; }
   public bool AutoReplaceEntrypoints { get; set; }
   public bool ScanAllLocalDrives { get; set; }
+  public bool FastStart { get; set; }
   public string DisplayName { get; set; }
   public string Video { get; set; }
   public string AppLaunch { get; set; }
@@ -124,6 +125,7 @@ namespace DragonCodexBoot {
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
   [DllImport("kernel32.dll")] public static extern IntPtr OpenProcess(uint access,bool inherit,int pid);
   [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] public static extern bool QueryFullProcessImageName(IntPtr h,uint flags,StringBuilder path,ref int length);
+  [DllImport("kernel32.dll",CharSet=CharSet.Unicode)] private static extern int GetPackageFamilyName(IntPtr h,ref uint length,StringBuilder family);
   [DllImport("kernel32.dll")] public static extern bool CloseHandle(IntPtr h);
   [DllImport("dwmapi.dll")] public static extern int DwmRegisterThumbnail(IntPtr dest,IntPtr source,out IntPtr thumb);
   [DllImport("dwmapi.dll")] public static extern int DwmUnregisterThumbnail(IntPtr thumb);
@@ -158,7 +160,16 @@ namespace DragonCodexBoot {
      string path="";
      IntPtr process=OpenProcess(0x1000,false,p.Id);
      if(process!=IntPtr.Zero) {
-      try { StringBuilder buffer=new StringBuilder(4096);int length=buffer.Capacity;if(QueryFullProcessImageName(process,0,buffer,ref length))path=buffer.ToString(); }
+      try {
+       const string prefix="shell:AppsFolder\\";
+       if(cfg.AppLaunch!=null&&cfg.AppLaunch.StartsWith(prefix,StringComparison.OrdinalIgnoreCase)) {
+        string expected=cfg.AppLaunch.Substring(prefix.Length).Split('!')[0];
+        uint count=256;StringBuilder family=new StringBuilder((int)count);
+        if(GetPackageFamilyName(process,ref count,family)!=0||!String.Equals(family.ToString(),expected,StringComparison.OrdinalIgnoreCase))continue;
+       }
+       StringBuilder buffer=new StringBuilder(4096);int length=buffer.Capacity;
+       if(QueryFullProcessImageName(process,0,buffer,ref length))path=buffer.ToString();
+      }
       finally { CloseHandle(process); }
      }
      if(path.IndexOf(cfg.ProcessPathContains,StringComparison.OrdinalIgnoreCase)>=0)pids.Add(p.Id);
@@ -171,7 +182,7 @@ namespace DragonCodexBoot {
     int cloaked;
     if(DwmGetWindowAttribute(h,14,out cloaked,4)==0&&cloaked!=0)return true;
     Bounds b=ClientBounds(h);
-    if(b.Width<450||b.Height<280)return true;
+    if(!IsIconic(h)&&(b.Width<450||b.Height<280))return true;
     found=h;return false; // Frontmost eligible main window; no title or screenshot is recorded.
    },IntPtr.Zero);
    return found;
@@ -191,6 +202,8 @@ namespace DragonCodexBoot {
   private double endedAt=-1;
   private int launchAttempts,launchInProgress;
   private double lastLaunchAt=-100;
+  private volatile bool activationAccepted;
+  private bool fastForwarded;
   private bool skipping,alignmentMismatchLogged,handoffPending,handoffFocusObserved;
   private IntPtr handoffHandle;
   private double handoffStartedAt,handoffStableAt,lastHandoffCheck=-1;
@@ -299,7 +312,16 @@ namespace DragonCodexBoot {
    Log("app-activation-requested attempt="+attempt);
    Thread worker=new Thread(delegate() {
     try {
+          IntPtr existing=Native.FindApp(cfg);
+     if(existing!=IntPtr.Zero) {
+      if(Native.IsIconic(existing))Native.ShowWindow(existing,9);
+      Native.SetForegroundWindow(existing);activationAccepted=true;
+      Log("existing-window-restored window="+existing.ToInt64());
+      return;
+     }
+     // Windows activation preserves the MSIX package identity and its profile.
      uint pid=AppActivation.Activate(cfg);
+     activationAccepted=true;
      Log("app-activated pid="+pid+" attempt="+attempt);
     } catch(Exception e) {
      Log("app-activation-failed attempt="+attempt+" error="+e.Message);
@@ -335,7 +357,7 @@ namespace DragonCodexBoot {
    if(closing)return;
    Probe();
    if(wall.Elapsed.TotalSeconds>cfg.MaxWaitSeconds+20) { FailLaunch();return; }
-   if(!ready&&wall.Elapsed.TotalSeconds-lastLaunchAt>=8)LaunchApp();
+   if(!ready&&wall.Elapsed.TotalSeconds-lastLaunchAt>=(activationAccepted?30:8))LaunchApp();
    if(handoffPending) { CheckHandoff();return; }
    if(skipping) { if(ready)HandOff();return; }
    if(!opened) {
@@ -343,6 +365,13 @@ namespace DragonCodexBoot {
     return;
    }
    double t=media.Position.TotalSeconds;
+   if(cfg.FastStart&&ready&&!fastForwarded&&!startedFade&&wall.Elapsed.TotalSeconds>=1) {
+    fastForwarded=true;
+    if(t<cfg.HoldAt) {
+     media.Position=TimeSpan.FromSeconds(cfg.HoldAt);t=cfg.HoldAt;
+     Log("fast-start-jumped-to-handoff-segment");
+    }
+   }
    if(!ready&&!startedFade&&t>=cfg.HoldAt) {
     if(!holding) { media.Pause();media.Position=TimeSpan.FromSeconds(cfg.HoldAt);holding=true;Log("waiting-for-window"); }
     status.Text="Codex正在启动…  Esc跳过";status.Visibility=Visibility.Visible;

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Diagnostics;
 using System.Reflection;
 using System.Windows;
@@ -13,6 +13,7 @@ class HandoffReplacementTest {
   cfg.Video=System.IO.Path.Combine(args[0],cfg.Video);
   cfg.ProcessNames=new[]{Process.GetCurrentProcess().ProcessName};
   cfg.ProcessPathContains="HandoffReplacementTest";
+  cfg.AppLaunch="test-fixture"; // Fixture windows are intentionally outside an MSIX package.
   Application app=new Application();app.ShutdownMode=ShutdownMode.OnExplicitShutdown;
   Window first=new Window {Width=950,Height=720,Title="Launcher test fixture"};first.Show();
   BootWindow boot=new BootWindow(cfg,args[1]);

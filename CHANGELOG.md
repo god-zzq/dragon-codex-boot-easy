@@ -1,3 +1,10 @@
+## 0.3.2
+
+- Always activate Codex through Windows application identity; avoid direct MSIX executable launch and profile separation.
+- Exclude processes without the configured application package identity from window handoff.
+- Include Repair-Startup.cmd to restart an existing unpackaged instance without clearing user data.
+- FastStart shortens animation when a matching responsive window appears. Window checks do not confirm page readiness.
+
 # Changelog
 
 ## 0.2.0 — 2026-10-06
