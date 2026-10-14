@@ -28,7 +28,7 @@ $stale=@(Get-Process -Name ([IO.Path]::GetFileNameWithoutExtension($expectedExe)
 Write-Output "检测到 $($stale.Count) 个缺少应用包身份的 Codex 进程。"
 if($DiagnoseOnly){return}
 Write-Output '将关闭异常实例，并通过 Windows 正式入口打开 Codex。保留所有聊天、配置和登录数据。'
-foreach($process in $stale){
+foreach($process in ($stale | Sort-Object -Property @{Expression={$_.MainWindowHandle -ne [IntPtr]::Zero};Descending=$true})){
  if($process.MainWindowHandle -ne 0){$null=$process.CloseMainWindow()}
  if(!$process.WaitForExit(4000)){
   # Recheck the exact executable and identity before stopping a stale instance.
