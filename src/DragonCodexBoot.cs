@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -18,12 +18,12 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("Dragon Codex Boot")]
 [assembly: AssemblyProduct("Dragon Codex Boot")]
 [assembly: AssemblyDescription("Community animation launcher for the Codex desktop client")]
-[assembly: AssemblyVersion("0.2.0.0")]
-[assembly: AssemblyFileVersion("0.2.0.0")]
+[assembly: AssemblyVersion("0.3.0.0")]
+[assembly: AssemblyFileVersion("0.3.0.0")]
 
 namespace DragonCodexBoot {
  public sealed class Config {
-  public Config() { AutoReplaceEntrypoints=true; ScanAllLocalDrives=true; }
+  public Config() { AutoReplaceEntrypoints=false; ScanAllLocalDrives=false; }
   public bool AutoReplaceEntrypoints { get; set; }
   public bool ScanAllLocalDrives { get; set; }
   public string DisplayName { get; set; }
@@ -184,9 +184,13 @@ namespace DragonCodexBoot {
   private readonly Stopwatch wall=new Stopwatch();
   private IntPtr host,target,thumbnail,stableHandle,alignedHandle;
   private Bounds initialBounds;
-  private double stableSince,lastProbe=-1;
+  private double stableSince,lastProbe=-1,lastAlignmentAt=-1,alignmentStartedAt=-1;
   private bool ready,opened,holding,closing,startedFade,thumbnailFailed;
   private double endedAt=-1;
+  private int launchAttempts,launchInProgress;
+  private double lastLaunchAt=-100;
+  private bool skipping,alignmentMismatchLogged;
+  private readonly object logLock=new object();
   public BootWindow(Config c,string baseDir) {
    cfg=c;root=baseDir;Title=String.IsNullOrWhiteSpace(c.DisplayName)?"Dragon Codex Boot":c.DisplayName;
    WindowStyle=WindowStyle.None;ResizeMode=ResizeMode.NoResize;ShowInTaskbar=false;
@@ -194,8 +198,8 @@ namespace DragonCodexBoot {
    target=Native.FindApp(cfg);
    System.Windows.Forms.Screen screen=target!=IntPtr.Zero?System.Windows.Forms.Screen.FromHandle(target)
     :System.Windows.Forms.Screen.FromPoint(System.Windows.Forms.Cursor.Position);
-   System.Drawing.Rectangle monitor=screen.Bounds;
-   initialBounds=Geometry.Centered(new Bounds(monitor.Left,monitor.Top,monitor.Width,monitor.Height),cfg.PlayerWidth,cfg.PlayerHeight);
+   System.Drawing.Rectangle monitor=screen.WorkingArea;
+   initialBounds=Geometry.Centered(new Bounds(monitor.Left,monitor.Top,monitor.Width,monitor.Height),Math.Min(cfg.PlayerWidth,monitor.Width),Math.Min(cfg.PlayerHeight,monitor.Height));
    Width=cfg.PlayerWidth;Height=cfg.PlayerHeight;WindowStartupLocation=WindowStartupLocation.Manual;
    Grid grid=new Grid();
    media=new MediaElement { LoadedBehavior=MediaState.Manual,UnloadedBehavior=MediaState.Manual,
@@ -219,7 +223,7 @@ namespace DragonCodexBoot {
    };
    Loaded+=delegate {
     wall.Start();
-    if(target==IntPtr.Zero)LaunchApp();
+    LaunchApp(); // Reactivate a tray-only process as well as a new application.
     media.Source=new Uri(Path.GetFullPath(Path.Combine(root,cfg.Video)));
     media.Play();timer.Start();Log("started fixed-player="+initialBounds.Width+"x"+initialBounds.Height
      +" at "+initialBounds.Left+","+initialBounds.Top);
@@ -248,17 +252,60 @@ namespace DragonCodexBoot {
    return IntPtr.Zero;
   }
   private void AlignTarget() {
-   if(!cfg.MatchClientToPlayer||target==IntPtr.Zero||alignedHandle==target)return;
-   bool aligned=Native.AlignClient(target,initialBounds);alignedHandle=target;
-   Log(aligned?"real-window-aligned-to-fixed-player":"real-window-alignment-inexact");
+   if(!cfg.MatchClientToPlayer||target==IntPtr.Zero)return;
+   Bounds actual=Native.ClientBounds(target);
+   bool matches=MatchesPlayer(actual);
+   if(alignedHandle==target&&matches)return;
+   double now=wall.Elapsed.TotalSeconds;
+   if(now-lastAlignmentAt<.25)return;
+   lastAlignmentAt=now;
+   if(alignmentStartedAt<0)alignmentStartedAt=now;
+   bool aligned=matches||Native.AlignClient(target,initialBounds);
+   actual=Native.ClientBounds(target);
+   if(aligned&&MatchesPlayer(actual)) {
+    alignedHandle=target;alignmentMismatchLogged=false;
+    Log("real-window-aligned-to-fixed-player desired="+FormatBounds(initialBounds)+" actual="+FormatBounds(actual));
+   } else {
+    alignedHandle=IntPtr.Zero;
+    // Respect the client's minimum size instead of stretching its thumbnail at handoff.
+    if(now-alignmentStartedAt>=.75&&actual.Width>0&&actual.Height>0) {
+     initialBounds=actual;
+     Native.SetWindowPos(host,new IntPtr(-1),actual.Left,actual.Top,actual.Width,actual.Height,0x10);
+     alignedHandle=target;
+     Log("player-adapted-to-client actual="+FormatBounds(actual));
+     return;
+    }
+    if(!alignmentMismatchLogged) {
+     alignmentMismatchLogged=true;
+     Log("real-window-alignment-pending desired="+FormatBounds(initialBounds)+" actual="+FormatBounds(actual));
+    }
+   }
    Native.SetForegroundWindow(host);
   }
+  private bool MatchesPlayer(Bounds actual) {
+   return Math.Abs(actual.Left-initialBounds.Left)<=2&&Math.Abs(actual.Top-initialBounds.Top)<=2
+    &&Math.Abs(actual.Width-initialBounds.Width)<=2&&Math.Abs(actual.Height-initialBounds.Height)<=2;
+  }
+  private static string FormatBounds(Bounds b) {
+   return b.Left+","+b.Top+","+b.Width+","+b.Height;
+  }
   private void LaunchApp() {
-   try {
-    // Shell launches the packaged desktop app; its CLI helper is never used as a UI executable.
-    Process.Start(new ProcessStartInfo("explorer.exe",cfg.AppLaunch) { UseShellExecute=true });
-    Log("app-launch-requested");
-   } catch(Exception e) { Log("app-launch-failed: "+e.Message);status.Text="无法自动打开Codex，按Esc退出";status.Visibility=Visibility.Visible; }
+   if(launchAttempts>=3||Interlocked.CompareExchange(ref launchInProgress,1,0)!=0)return;
+   lastLaunchAt=wall.Elapsed.TotalSeconds;int attempt=++launchAttempts;
+   Log("app-activation-requested attempt="+attempt);
+   Thread worker=new Thread(delegate() {
+    try {
+     uint pid=AppActivation.Activate(cfg);
+     Log("app-activated pid="+pid+" attempt="+attempt);
+    } catch(Exception e) {
+     Log("app-activation-failed attempt="+attempt+" error="+e.Message);
+     try {
+      Process.Start(new ProcessStartInfo(cfg.AppLaunch) { UseShellExecute=true });
+      Log("app-shell-fallback-requested");
+     } catch(Exception fallback) { Log("app-shell-fallback-failed: "+fallback.Message); }
+    } finally { Interlocked.Exchange(ref launchInProgress,0); }
+   });
+   worker.SetApartmentState(ApartmentState.STA);worker.IsBackground=true;worker.Start();
   }
   private void Probe() {
    double now=wall.Elapsed.TotalSeconds;
@@ -283,7 +330,9 @@ namespace DragonCodexBoot {
   private void Tick(object sender,EventArgs e) {
    if(closing)return;
    Probe();
-   if(wall.Elapsed.TotalSeconds>cfg.MaxWaitSeconds+20) { Log("wait-timeout");HandOff();return; }
+   if(wall.Elapsed.TotalSeconds>cfg.MaxWaitSeconds+20) { FailLaunch();return; }
+   if(!ready&&wall.Elapsed.TotalSeconds-lastLaunchAt>=8)LaunchApp();
+   if(skipping) { if(ready)HandOff();return; }
    if(!opened) {
     if(wall.Elapsed.TotalSeconds>12) { Log("media-open-timeout");HandOff(); }
     return;
@@ -318,22 +367,33 @@ namespace DragonCodexBoot {
    if(endedAt>=0&&wall.Elapsed.TotalSeconds-endedAt>.25)HandOff();
   }
   private void HandOff() {
-   if(closing)return;closing=true;
-   timer.Stop();DropThumbnail();
+   if(closing)return;
    IntPtr app=Native.FindApp(cfg);
-   if(app!=IntPtr.Zero) {
-    if(Native.IsIconic(app))Native.ShowWindow(app,9);
-    // Removes the covering window and hands input to the real application.
-    Close();Native.SetForegroundWindow(app);Log("handed-off-to-real-window");
-   } else {
-    Close();Log("closed-without-window");
+   if(app==IntPtr.Zero||!Native.Responsive(app)) {
+    // Skipping must not cancel the application launch or its readiness checks.
+    if(!skipping) {
+     skipping=true;media.Stop();DropThumbnail();Hide();
+     Log("animation-skipped-waiting-for-window");
+    }
+    if(wall.Elapsed.TotalSeconds-lastLaunchAt>=3)LaunchApp();
+    return;
    }
+   closing=true;timer.Stop();DropThumbnail();
+   if(Native.IsIconic(app))Native.ShowWindow(app,9);
+   Close();bool foreground=Native.SetForegroundWindow(app);
+   Log("handed-off-to-real-window foreground="+foreground);
+  }
+  private void FailLaunch() {
+   if(closing)return;closing=true;timer.Stop();DropThumbnail();Close();
+   Log("app-window-timeout attempts="+launchAttempts);
+   MessageBox.Show("Windows已收到启动请求，但Codex窗口未在等待时间内出现。请使用官方Codex入口打开应用，再尝试动画入口。\n诊断日志："+
+    Path.Combine(root,"logs","launcher.log"),"Codex启动未完成",MessageBoxButton.OK,MessageBoxImage.Warning);
   }
   private void Log(string s) {
    try {
     Directory.CreateDirectory(Path.Combine(root,"logs"));
     string line=DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")+" "+s+Environment.NewLine;
-    File.AppendAllText(Path.Combine(root,"logs","launcher.log"),line);
+    lock(logLock)File.AppendAllText(Path.Combine(root,"logs","launcher.log"),line);
    } catch {}
   }
  }
@@ -421,6 +481,21 @@ namespace DragonCodexBoot {
    try {
     // Headless checks exit before any desktop API or media window is constructed.
     if(args.Contains("--self-test"))return SelfTest(root);
+    if(args.Contains("--activation-test")) {
+     Config testConfig=ReadConfig(root);uint pid=AppActivation.Activate(testConfig);
+     Stopwatch wait=Stopwatch.StartNew();IntPtr found=IntPtr.Zero;
+     while(wait.Elapsed.TotalSeconds<20) {
+      found=Native.FindApp(testConfig);
+      if(found!=IntPtr.Zero&&Native.Responsive(found))break;
+      Thread.Sleep(200);
+     }
+     bool ok=found!=IntPtr.Zero&&Native.Responsive(found);
+     Directory.CreateDirectory(Path.Combine(root,"qa"));
+     File.WriteAllText(Path.Combine(root,"qa","activation-test.json"),new JavaScriptSerializer().Serialize(new {
+      ok=ok,activationPid=pid,windowHandle=found.ToInt64(),elapsedSeconds=wait.Elapsed.TotalSeconds
+     }));
+     return ok?0:2;
+    }
     if(args.Contains("--restore-entrypoints"))return Integrate(root,"Restore",true);
     if(args.Contains("--integrate-entrypoints"))return Integrate(root,"Install",true);
     bool owns;using(Mutex mutex=new Mutex(true,"Local\\DragonCodexBoot",out owns)) {
@@ -440,7 +515,7 @@ namespace DragonCodexBoot {
      return app.Run(new BootWindow(c,root));
     }
    } catch(Exception e) {
-    if(args.Contains("--self-test")) { File.WriteAllText(Path.Combine(root,"self-test-error.txt"),e.ToString());return 1; }
+    if(args.Contains("--self-test")||args.Contains("--activation-test")) { File.WriteAllText(Path.Combine(root,"self-test-error.txt"),e.ToString());return 1; }
     MessageBox.Show(e.Message,"Codex启动");return 1;
    }
   }

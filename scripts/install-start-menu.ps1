@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([ValidateSet('Install','Verify','Restore')][string]$Action='Install',[string]$AppRoot)
 $ErrorActionPreference='Stop'
 if (!$AppRoot) {

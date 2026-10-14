@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([Parameter(Mandatory=$true)][string]$VideoPath,[string]$AppRoot)
 $ErrorActionPreference = 'Stop'
 if (!$AppRoot) {

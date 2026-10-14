@@ -1,143 +1,68 @@
-# Dragon Codex Boot
+# Codex 龙娘启动 · 简易版
 
-给 Windows 版 Codex 桌面客户端播放自定义启动动画，并把动画结尾自然交接到真实、可操作的软件窗口。
+**下载、解压、双击安装。以后点桌面图标，就能看龙娘动画并进入 Codex。**
 
-**社区独立项目，与 OpenAI 无隶属关系。** 源码使用 MIT 许可证。仓库与默认程序包包含一段完整的 1080p 龙娘启动动画，解压即可播放，也支持换成自己的 MP4。视频许可说明见 [随附媒体说明](media/MEDIA_NOTICE.md)。
+这是 [Dragon Codex Boot](https://github.com/yushua0808-cpu/dragon-codex-boot) 的社区改进版。保留上游龙娘视频、实时窗口交接和 MIT 源码，补上实际使用中遇到的启动失败、窗口错位问题，并提供无需改配置的一键安装。
 
-## 它做什么
+## 三步开始
 
-1. 居中播放启动视频，默认窗口为 **1920 × 1080 物理像素**。
-2. 同时打开已安装的 Codex 客户端；如果客户端已开，衔接到现有窗口。
-3. 客户端尚未出现时，在可配置的动画节点暂停等待。
-4. 把真实客户端客户区对齐到播放窗口，以 Windows DWM 实时缩略图填入动画里的屏幕。
-5. 随着动画屏幕扩大，真实界面逐渐显现；视频结束后撤掉播放窗口，把操作交还给客户端。
+1. 打开 [最新版本下载页](https://github.com/god-zzq/dragon-codex-boot-easy/releases/latest)，下载 `DragonCodexBootEasy-版本-win-x64-with-video.zip`。
+2. **完整解压** ZIP，双击 `Install.cmd`。不要在压缩包预览里直接运行。
+3. 安装结束会自动播放。以后双击桌面或开始菜单的 **Codex 龙娘启动（简易版）**。
 
-支持 `Esc` 跳过、自定义音量、衔接时段、屏幕矩形关键帧，以及首次运行时自动替换启动快捷方式。DWM 连接失败时使用淡出交接。
+需要 Windows 10/11 x64、.NET Framework 4.8，并已安装 Windows 版 Codex。无需管理员权限、Node、Python或 API key。Windows N 需要补装媒体功能。
 
-默认配置来自一段约 14 秒、16:9 的动画：11.3 秒等待节点，12.7–13.65 秒交接。这些时间和屏幕坐标必须按自己的视频修改，**不是适用于所有视频的通用模板**。
+安装器自动识别本机 Codex 应用 ID，把程序复制到 `%LOCALAPPDATA%\DragonCodexBootEasy`，创建当前用户的快捷方式。安装完成后，下载包和解压目录可以删除。已有官方入口继续可用。
 
-## 环境
+只想试试：解压后直接双击 `Start.cmd` 或 `DragonCodexBoot.exe`，无需安装。便携模式使用随附的标准 Codex 应用标识。
 
-- Windows 10/11 x64，.NET Framework 4.8。
-- 已安装 Windows 版 Codex 桌面客户端。
-- 本地 MP4，建议 H.264 视频与 AAC 音频、16:9。
-- 播放依赖 Windows 自带媒体能力。Windows N 等缺少媒体组件的系统可能无法播放。
+## 使用与卸载
 
-播放不需要 Node、Python、NuGet、API key、视频生成服务或管理员权限。修改其他用户或公共目录中的快捷方式可能需要管理员权限；失败会记录到报告，程序不会自行弹出提权请求。
+- 动画约 14 秒，带声音；`Esc` 或右上角按钮跳过。跳过后仍继续启动 Codex。
+- Codex 已打开时，动画结束交接到现有窗口。
+- 卸载：双击解压包里的 `Uninstall.cmd`，或打开 `%LOCALAPPDATA%\DragonCodexBootEasy` 双击同名文件。只移除本工具记录的文件和属于本工具的快捷方式；官方客户端、自定义文件和诊断日志保留。
+- 更新：退出动画后，解压新版本，再双击 `Install.cmd`。配置恢复新版本默认值；有自定义配置时先备份 `launcher.json`。
+- 调静音：安装目录的 `launcher.json` 中把 `Volume` 改成 `0`，默认 `0.3`。
 
-## 下载版：解压后直接运行
+## 这个版本修了什么
 
-从仓库的 **Releases** 下载 `DragonCodexBoot-版本-win-x64-with-video.zip`，解压到一个长期保留的位置，然后双击 **DragonCodexBoot.exe**。
+| 实际问题 | 处理方式 |
+| --- | --- |
+| 动画播放完，Codex 没打开 | 使用 Windows 应用激活接口；失败时回退到系统启动方式，等待期间最多尝试三次 |
+| 按跳过后启动中断 | 隐藏动画后继续等待客户端，窗口出现再交接 |
+| 页面比动画高，交接时跳变 | 默认 1536×900 物理像素，测量实际客户区；不匹配就重试，并适应客户端的最小尺寸 |
+| 解压目录移动后快捷方式失效 | 一键安装复制到固定的用户目录 |
+| 用户不懂应用 ID 和配置 | 安装时读取已安装的 Codex 包，自动配置启动入口 |
 
-程序包已经包含 `media/startup.mp4` 与匹配这段动画的配置。已安装 Codex 且客户端标识与示例一致时，即可播放动画并接入客户端；标识不一致时参考 [配置说明](docs/CONFIGURATION.md) 更新 `AppLaunch`。
+视频保持原始 16:9 比例，非 16:9 窗口会留边；过渡完成时真实页面填满窗口。窗口尺寸会随屏幕可用区域和客户端尺寸限制调整。客户端在交接时会被调整位置和大小。
 
-### 默认自动替换启动入口
+默认不扫描磁盘、不替换官方快捷方式。上游的高级入口整合脚本仍保留供手动使用，详见 [入口说明](docs/ENTRYPOINTS.md)。
 
-**首次运行会自动替换指向配置中官方客户端的 `.lnk` 快捷方式。** 下载文件本身不会改变电脑。
+## 遇到问题
 
-- 先检查桌面、开始菜单程序目录、公共桌面、公共开始菜单，以及任务栏/快速启动的快捷方式目录。
-- 默认继续查找所有本地固定磁盘上的可访问快捷方式，后台运行，最多扫描 5 分钟。跳过 Windows、回收站、链接目录、运行时/缓存目录和启动器自身目录。
-- 用实际目标、精确的 AppsFolder 应用 ID 或已安装应用包的可执行文件匹配；同名的其他程序、网页链接不改。
-- 已有快捷方式的名称和图标保留，目标改为动画启动器。当前用户桌面和开始菜单缺少对应入口时，补建一个使用已安装客户端名称和本机图标的入口。
-- 每个改动先备份原始文件、记录 SHA-256，再替换并复核。扫描结果在 `.integration/report.json`；下次启动不会重复扫描。
-
-解压目录必须长期保留，替换后的快捷方式会指向该目录。**删除或搬走程序前，先双击 `Restore-Original-Entrypoints.cmd` 恢复。** 它只恢复仍与安装记录相符的快捷方式；后来被你修改或删除的入口会保留。恢复后再次播放动画不会自动重新替换。
-
-新增了快捷方式，或希望重试权限不足的公共目录时，双击 `Rescan-Entrypoints.cmd`。必要时右键这个文件选择以管理员身份运行。
-
-**覆盖范围：可识别且可写的启动快捷方式。** MSIX 注册的“所有应用”/搜索结果、原有开始菜单固定项、直接运行官方 exe、协议链接及第三方程序内部调用不由 `.lnk` 替换统一控制。任务栏可能缓存旧启动信息，需要取消固定后重新固定修改过的入口。程序报告分别显示这些限制，不能把文件替换成功当成“全机所有入口已接管”。
-
-如果不希望修改任何入口，在首次启动前把 `launcher.json` 中的 `AutoReplaceEntrypoints` 改为 `false`。详见 [入口替换和恢复](docs/ENTRYPOINTS.md)。
-
-### 换成自己的动画
-
-1. 在该目录打开 PowerShell，将自己的视频导入：
-
-   ```powershell
-   powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Import-Animation.ps1 -VideoPath "D:\Animations\startup.mp4"
-   ```
-
-2. 用文本编辑器打开同目录的 `launcher.json`，按视频修改等待节点、过渡时间和屏幕位置。详见 [配置说明](docs/CONFIGURATION.md)。
-3. 双击 `DragonCodexBoot.exe`。它播放动画，然后进入真实 Codex。
-
-导入脚本复制视频到 `media/startup.mp4`，验证副本哈希，已有视频和配置会保留备份。它只导入文件，不分析、重新生成或自动修改分镜。
-
-### 固定到开始菜单
-
-首次运行已经创建或替换可识别的开始菜单快捷方式。对于 Windows 原先固定的官方应用，取消原固定项，再固定下载目录中的 `DragonCodexBoot.exe` 或已修改的快捷方式。
-
-如果希望额外创建一个社区名称的独立入口，可使用原有脚本：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-start-menu.ps1
-```
-
-随后在资源管理器中右键 `DragonCodexBoot.exe`，选择 **固定到“开始”**。
-
-只恢复这个额外的社区名称入口：先在开始菜单取消其固定，再执行：
-
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\install-start-menu.ps1 -Action Restore
-```
-
-这段兼容脚本只管理 `Dragon Codex Boot.lnk`。恢复首次运行的批量替换请使用 `Restore-Original-Entrypoints.cmd`。
+- 找不到 Codex：先用官方入口确认 Windows 版 Codex 已安装，再运行 `Install.cmd`。
+- 黑屏或没声音：检查 Windows 媒体功能；仍可按 `Esc` 跳过。
+- 对齐异常：日志在安装目录的 `logs/launcher.log`，会记录预期和实际尺寸。提交问题时附系统缩放比例、显示器分辨率和相关日志，先去掉私人信息。
+- 下载提示：这是未签名的社区程序，Windows 可能显示来源提示。请从本仓库 Release 下载，并对照随附 SHA-256 文件。
 
 ## 从源码构建
 
-克隆或下载源码，在仓库根目录运行：
+在 Windows PowerShell 中运行：
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\test.ps1
+./scripts/test.ps1
+./scripts/package.ps1
+./scripts/verify-repository.ps1
 ```
 
-输出位于 `build/DragonCodexBoot/`。首次构建复制配置模板；再次构建保留已有的 `launcher.json`。
+输出在 `dist`。GitHub Actions 对提交执行构建、几何/配置测试、快捷方式测试、安装/重装/卸载测试和包校验；`v*` 标签会发布带视频 ZIP 和 SHA-256 文件。
 
-导入自己的视频：
+本机已验证真实应用激活、延迟窗口出现时的跳过与重试、完整动画交接和窗口对齐。CI 使用隔离目录测试安装流程，不启动官方客户端。不同显示器和缩放设置仍需实机验证。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Import-Animation.ps1 -VideoPath "D:\Animations\startup.mp4"
-```
+## 来源与许可
 
-制作包含随附演示视频的可分发程序包：
+上游：**[yushua0808-cpu/dragon-codex-boot](https://github.com/yushua0808-cpu/dragon-codex-boot)**。感谢原作者提供龙娘动画、DWM 交接、窗口几何算法、发布包校验和快捷方式恢复机制。
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package.ps1
-```
+源码按 [MIT](LICENSE) 分发，保留上游版权声明。完整演示视频与原音轨按上游方式随示例分发，保留 [媒体说明](media/MEDIA_NOTICE.md)；源码 MIT 许可不自动授予视频素材的额外用途权利。详见 [第三方说明](THIRD_PARTY_NOTICES.md)。
 
-包和 SHA-256 文件写入 `dist/`。默认使用公开配置模板与仓库中的 `media/startup.mp4`，不会自动把后来导入到本机 build 目录的个人视频打包进去。可加 `-WithoutMedia` 生成不含视频的程序包。
-
-### 自定义名称与图标
-
-- 显示名：修改配置中的 `DisplayName`。
-- 图标：构建时可传入自己有权使用的 `.ico`：
-
-  ```powershell
-  powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -IconPath "D:\MyAssets\my-icon.ico"
-  ```
-
-公开默认名是 **Dragon Codex Boot**。官方图标不包含在仓库或默认发布包中；本机私人版本可继续使用自己的名称和图标设置。
-
-## 当前实现的限制
-
-- 为 16:9 视频设计；实际显示器小于配置的物理窗口尺寸时可能超出屏幕，应降低 `PlayerWidth` / `PlayerHeight`。
-- 找到“可见、可响应且稳定”的客户端窗口是一种启发式检查，无法证明所有后台任务已加载完。
-- `MatchClientToPlayer: true` 会恢复并移动、调整真实客户端窗口，结束后保留该位置和尺寸。
-- 动画里的生成式界面和真实界面可能不同；最好让最后屏幕的比例、配色、结构接近真实软件。
-- DWM 缩略图在过渡阶段只显示实时画面，交接完成后才能操作真实客户端。
-- 默认入口替换受权限、扫描范围和时间预算限制。开始菜单/任务栏的固定缓存不等同于目录里的 `.lnk`。
-- 不改写官方应用包，不安装持续监听服务，也不设置开机自启。
-
-## 项目结构
-
-```text
-src/                         C# WPF 启动器与 DPI 清单
-config/launcher.example.json 公开配置模板
-scripts/                     构建、导入、测试、快捷方式和打包
-tests/                       配置、几何定位及隔离快捷方式恢复测试
-docs/                        配置、发布与手动验收
-.github/workflows/           Windows 构建及程序包检查
-```
-
-日志在启动器目录的 `logs/launcher.log`，记录步骤和错误；不保存聊天正文或画面，没有网络遥测。[手动验收](docs/TESTING.md)说明真实窗口检查的范围。
-
-参与改进请阅读 [贡献说明](CONTRIBUTING.md)。软件许可见 [LICENSE](LICENSE)，媒体和第三方名称说明见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+独立社区项目，与 OpenAI 无隶属关系。

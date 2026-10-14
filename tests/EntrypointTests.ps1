@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $fixture=Join-Path $repoRoot ('.local/entrypoint-tests-'+[Guid]::NewGuid().ToString('N'))
 $appRoot=Join-Path $fixture 'app'
@@ -7,6 +7,10 @@ $nested=Join-Path $linksRoot 'nested'
 New-Item -ItemType Directory -Path $appRoot,$linksRoot,$nested -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repoRoot 'build/DragonCodexBoot/DragonCodexBoot.exe') -Destination $appRoot
 Copy-Item -LiteralPath (Join-Path $repoRoot 'config/launcher.example.json') -Destination (Join-Path $appRoot 'launcher.json')
+$fixtureConfigPath=Join-Path $appRoot 'launcher.json'
+$fixtureConfig=Get-Content -LiteralPath $fixtureConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$fixtureConfig.AutoReplaceEntrypoints=$true;$fixtureConfig.ScanAllLocalDrives=$true
+$fixtureConfig | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $fixtureConfigPath -Encoding UTF8
 $official=Join-Path $fixture 'OfficialClient.exe'
 $other=Join-Path $fixture 'Other.exe'
 [IO.File]::WriteAllBytes($official,[byte[]]@(1));[IO.File]::WriteAllBytes($other,[byte[]]@(2))
@@ -97,3 +101,4 @@ Check ((Hash $lockedLink) -eq $lockedOriginal) 'Restore must accept an unchanged
 @{ok=$true;checks=$checks;scope='Isolated .lnk file metadata and backup/restore only; no actual user entrypoints changed.'} |
     ConvertTo-Json | Set-Content -LiteralPath (Join-Path $repoRoot 'build/DragonCodexBoot/qa/entrypoint-tests.json') -Encoding UTF8
 Write-Output ('PASS: '+$checks+' isolated entrypoint assertions. No desktop UI or actual shortcuts changed.')
+

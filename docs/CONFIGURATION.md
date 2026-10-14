@@ -15,8 +15,8 @@
 | `Volume` | 0–1 音量 |
 | `PlayerWidth` / `PlayerHeight` | 固定播放窗口的物理像素尺寸 |
 | `MatchClientToPlayer` | 是否将真实客户端客户区对齐到播放窗口 |
-| `AutoReplaceEntrypoints` | 首次运行自动替换可识别的启动快捷方式，默认 `true`；启动前设为 `false` 可关闭 |
-| `ScanAllLocalDrives` | 除桌面、开始菜单和快速启动目录外，也扫描本地固定磁盘，默认 `true`；设为 `false` 仅扫描这些常用目录 |
+| `AutoReplaceEntrypoints` | 首次运行自动替换可识别的启动快捷方式，简易版默认 `false`；推荐使用 Install.cmd 创建单独入口 |
+| `ScanAllLocalDrives` | 高级整合工具是否扫描本地固定磁盘，简易版默认 `false`；安装器不运行此扫描 |
 | `ScreenFrames` | 视频中屏幕区域的矩形关键帧 |
 
 ## 找到本机客户端标识
@@ -59,4 +59,5 @@ Get-StartApps | Where-Object { $_.Name -match 'ChatGPT|Codex' }
 "PlayerHeight": 720
 ```
 
-物理像素大小不随 Windows 缩放比例变化。首版有意保留固定尺寸行为，不自动缩小超出显示器的播放器。
+默认 1536×900 物理像素。初始窗口适应屏幕工作区域；如果客户端最低尺寸更大，播放器会适应实际客户区，避免最终缩略图与真实页面尺寸不一致。
+

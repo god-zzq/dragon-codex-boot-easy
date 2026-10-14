@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([switch]$WithoutMedia)
 $ErrorActionPreference='Stop'
 $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -13,9 +13,9 @@ New-Item -ItemType Directory -Path $stage,(Join-Path $stage 'scripts') -Force | 
 Copy-Item -LiteralPath $exe -Destination $stage
 # Public builds always use the checked-in template; private paths never enter a default package.
 Copy-Item -LiteralPath (Join-Path $repoRoot 'config/launcher.example.json') -Destination (Join-Path $stage 'launcher.json')
-foreach ($name in @('LICENSE','README.md','CONTRIBUTING.md','THIRD_PARTY_NOTICES.md','VERSION','Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd')) { Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $stage }
+foreach ($name in @('LICENSE','README.md','CONTRIBUTING.md','THIRD_PARTY_NOTICES.md','VERSION','Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd','Install.cmd','Uninstall.cmd','Start.cmd')) { Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $stage }
 Copy-Item -LiteralPath (Join-Path $repoRoot 'docs') -Destination $stage -Recurse
-foreach ($name in @('Import-Animation.ps1','install-start-menu.ps1','integrate-entrypoints.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $stage 'scripts') }
+foreach ($name in @('Import-Animation.ps1','install-start-menu.ps1','integrate-entrypoints.ps1','setup.ps1')) { Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $stage 'scripts') }
 New-Item -ItemType Directory -Path (Join-Path $stage 'media') -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $repoRoot 'media/MEDIA_NOTICE.md') -Destination (Join-Path $stage 'media/MEDIA_NOTICE.md')
 if (!$WithoutMedia) {
@@ -27,8 +27,8 @@ if (!$WithoutMedia) {
 }
 Add-Type -AssemblyName System.IO.Compression,System.IO.Compression.FileSystem
 $flavor=if ($WithoutMedia) { '-no-media' } else { '-with-video' }
-$zip=Join-Path $dist ('DragonCodexBoot-'+$version+'-win-x64'+$flavor+'.zip')
-if (Test-Path -LiteralPath $zip) { $zip=Join-Path $dist ('DragonCodexBoot-'+$version+'-win-x64'+$flavor+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.zip') }
+$zip=Join-Path $dist ('DragonCodexBootEasy-'+$version+'-win-x64'+$flavor+'.zip')
+if (Test-Path -LiteralPath $zip) { $zip=Join-Path $dist ('DragonCodexBootEasy-'+$version+'-win-x64'+$flavor+'-'+(Get-Date -Format 'yyyyMMdd-HHmmss')+'.zip') }
 # .NET Framework's CreateFromDirectory can write backslash entry names on Windows.
 # Use explicit POSIX entry paths so .NET Framework, newer .NET and other unzip tools agree.
 $archive=[IO.Compression.ZipFile]::Open($zip,[IO.Compression.ZipArchiveMode]::Create)
@@ -42,3 +42,4 @@ try {
 $sha=(Get-FileHash -LiteralPath $zip -Algorithm SHA256).Hash.ToLowerInvariant()
 ($sha+'  '+[IO.Path]::GetFileName($zip)) | Set-Content -LiteralPath ($zip+'.sha256') -Encoding ASCII
 Write-Output $zip
+

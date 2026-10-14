@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [ValidateSet('Auto','Install','Restore','Verify')][string]$Action='Install',
     [string]$AppRoot,

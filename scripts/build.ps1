@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$IconPath)
 $ErrorActionPreference = 'Stop'
 $repoRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
@@ -23,6 +23,7 @@ if ($IconPath) {
     $argsList += '/win32icon:' + $resolvedIcon
 }
 $argsList += Join-Path $repoRoot 'src/DragonCodexBoot.cs'
+$argsList += Join-Path $repoRoot 'src/AppActivation.cs'
 & $compiler @argsList
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }
 $configPath = Join-Path $outputRoot 'launcher.json'
@@ -37,10 +38,17 @@ if ((Test-Path -LiteralPath $demoVideo) -and !(Test-Path -LiteralPath $outputVid
     if ((Get-FileHash -LiteralPath $demoVideo).Hash -ne (Get-FileHash -LiteralPath $outputVideo).Hash) { throw 'Bundled video copy mismatch.' }
 }
 New-Item -ItemType Directory -Path (Join-Path $outputRoot 'scripts') -Force | Out-Null
-foreach ($name in @('integrate-entrypoints.ps1','Import-Animation.ps1','install-start-menu.ps1')) {
+foreach ($name in @('integrate-entrypoints.ps1','Import-Animation.ps1','install-start-menu.ps1','setup.ps1')) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $outputRoot 'scripts') -Force
 }
-foreach ($name in @('Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd')) {
+foreach ($name in @('Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd','Install.cmd','Uninstall.cmd','Start.cmd')) {
     Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $outputRoot -Force
 }
 Write-Output ('Built: ' + (Join-Path $outputRoot 'DragonCodexBoot.exe'))
+
+
+foreach ($name in @('README.md','LICENSE','THIRD_PARTY_NOTICES.md','VERSION')) {
+ Copy-Item -LiteralPath (Join-Path $repoRoot $name) -Destination $outputRoot -Force
+}
+Copy-Item -LiteralPath (Join-Path $repoRoot 'docs') -Destination $outputRoot -Recurse -Force
+Copy-Item -LiteralPath (Join-Path $repoRoot 'media/MEDIA_NOTICE.md') -Destination (Join-Path $outputRoot 'media/MEDIA_NOTICE.md') -Force

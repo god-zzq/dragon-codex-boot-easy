@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $files=@(& git -c core.quotePath=false -C $repoRoot ls-files)
 if ($LASTEXITCODE -ne 0 -or $files.Count -eq 0) { throw 'No tracked repository files. Initialize and stage the clean source first.' }
@@ -35,8 +35,8 @@ try {
     $reader=New-Object IO.StreamReader($cfgEntry.Open())
     try { $packedConfig=$reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose() }
     if ($packedConfig.Video -ne 'media/startup.mp4') { throw 'Private config packaged.' }
-    if ($packedConfig.AutoReplaceEntrypoints -ne $true -or $packedConfig.ScanAllLocalDrives -ne $true) { throw 'First-run integration defaults missing.' }
-    foreach ($name in @('scripts/integrate-entrypoints.ps1','Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd','docs/ENTRYPOINTS.md')) {
+    if ($packedConfig.AutoReplaceEntrypoints -ne $false -or $packedConfig.ScanAllLocalDrives -ne $false) { throw 'Easy-install defaults must not replace official shortcuts.' }
+    foreach ($name in @('scripts/integrate-entrypoints.ps1','Restore-Original-Entrypoints.cmd','Rescan-Entrypoints.cmd','docs/ENTRYPOINTS.md','Install.cmd','Uninstall.cmd','Start.cmd','scripts/setup.ps1')) {
         if (!$archive.GetEntry($name)) { throw ('Entrypoint feature file missing: '+$name) }
     }
     $exeEntry=$archive.GetEntry('DragonCodexBoot.exe')
@@ -55,3 +55,4 @@ try {
 $expected=(Get-Content -LiteralPath ($zip.FullName+'.sha256') -Raw).Trim().Split(' ')[0]
 if ($expected -ine (Get-FileHash -LiteralPath $zip.FullName).Hash) { throw 'Archive hash mismatch.' }
 Write-Output ('PASS: '+$files.Count+' tracked files; only the approved demo video included; private paths and credential markers excluded; package entries and hashes checked.')
+

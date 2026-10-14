@@ -1,6 +1,6 @@
 {
-  "AutoReplaceEntrypoints": true,
-  "ScanAllLocalDrives": true,
+  "AutoReplaceEntrypoints": false,
+  "ScanAllLocalDrives": false,
   "Video": "media/startup.mp4",
   "AppLaunch": "shell:AppsFolder\\OpenAI.Codex_2p2nqsd0c76g0!App",
   "ProcessPathContains": "OpenAI.Codex_",
@@ -12,9 +12,9 @@
   "TransitionStart": 12.7,
   "TransitionEnd": 13.65,
   "MaxWaitSeconds": 60,
-  "Volume": 1,
-  "PlayerWidth": 1920,
-  "PlayerHeight": 1080,
+  "Volume": 0.3,
+  "PlayerWidth": 1536,
+  "PlayerHeight": 900,
   "MatchClientToPlayer": true,
   "ScreenFrames": [
     {
@@ -46,5 +46,5 @@
       "Height": 1
     }
   ],
-  "DisplayName": "Dragon Codex Boot"
+  "DisplayName": "Codex · Dragon"
 }

@@ -1,4 +1,4 @@
-$ErrorActionPreference='Stop'
+﻿$ErrorActionPreference='Stop'
 $repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 & (Join-Path $PSScriptRoot 'build.ps1')
 $outputRoot=Join-Path $repoRoot 'build/DragonCodexBoot'
@@ -13,3 +13,6 @@ if ($LASTEXITCODE -ne 0) { throw 'Test harness compilation failed.' }
 if ($LASTEXITCODE -ne 0) { throw 'Geometry or configuration tests failed.' }
 & (Join-Path $repoRoot 'tests/EntrypointTests.ps1')
 Get-Content -LiteralPath (Join-Path $outputRoot 'qa/self-test.json') -Raw
+
+& (Join-Path $repoRoot 'tests/SetupTests.ps1')
+
