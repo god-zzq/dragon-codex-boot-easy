@@ -1,3 +1,8 @@
+## 0.3.4
+
+- Replace the drawn avatar with a face crop from the bundled dragon-girl animation, with rounded corners and seven icon sizes.
+- The portrait is derived from startup.mp4 and retains that media's rights notice.
+
 ## 0.3.3
 
 - Bundle an original purple dragon-girl icon and allow only its two named public assets in repository verification.

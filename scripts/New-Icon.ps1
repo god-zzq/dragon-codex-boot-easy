@@ -1,33 +1,24 @@
-param([string]$OutputRoot)
+﻿[CmdletBinding()]
+param([string]$OutputRoot,[string]$VideoPath)
 $ErrorActionPreference='Stop'
+$repoRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
+if(!$OutputRoot){$OutputRoot=Join-Path $repoRoot 'assets'}
+if(!$VideoPath){$VideoPath=Join-Path $repoRoot 'media/startup.mp4'}
+$frameRoot=Join-Path $repoRoot '.local/icon-source'
+New-Item -ItemType Directory -Path $OutputRoot,$frameRoot -Force | Out-Null
+$frame=Join-Path $frameRoot 'portrait.png'
+# Crop the original animation at 3 seconds, around the dragon girl's face and horns.
+& ffmpeg -hide_banner -loglevel error -ss 3 -i $VideoPath -vf 'crop=300:300:837:34,scale=512:512:flags=lanczos' -frames:v 1 -y $frame
+if($LASTEXITCODE -ne 0){throw 'Unable to extract the original portrait. Install FFmpeg first.'}
 Add-Type -AssemblyName System.Drawing
-New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
 Add-Type -ReferencedAssemblies System.Drawing -TypeDefinition @"
 using System;using System.Drawing;using System.Drawing.Drawing2D;using System.Drawing.Imaging;using System.IO;
-public static class DragonIcon {
- static Brush B(string hex){return new SolidBrush(ColorTranslator.FromHtml(hex));}
- static void Poly(Graphics g,string color,params PointF[] points){using(var b=B(color))g.FillPolygon(b,points);}
- static PointF P(float x,float y){return new PointF(x,y);}
- public static void Make(string root){
- using(var image=new Bitmap(512,512,PixelFormat.Format32bppArgb)){
- using(var g=Graphics.FromImage(image)){
- g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(Color.Transparent);
- using(var bg=new LinearGradientBrush(new Rectangle(20,20,472,472),ColorTranslator.FromHtml("#37245E"),ColorTranslator.FromHtml("#8155B9"),45f))g.FillEllipse(bg,20,20,472,472);
- using(var b=B("#CAB8F6"))g.FillEllipse(b,104,129,304,351);
- Poly(g,"#EEE3FC",P(111,198),P(78,84),P(124,107),P(176,161));
- Poly(g,"#EEE3FC",P(401,198),P(434,84),P(388,107),P(336,161));
- Poly(g,"#AD83DC",P(118,164),P(93,104),P(136,145));
- Poly(g,"#AD83DC",P(394,164),P(419,104),P(376,145));
- using(var b=B("#674293")){g.FillEllipse(b,93,157,71,271);g.FillEllipse(b,348,157,71,271);}
- using(var b=B("#FFE7DA"))g.FillEllipse(b,151,178,210,243);
- using(var b=B("#E9DEFC"))g.FillEllipse(b,141,135,230,106);
- Poly(g,"#E9DEFC",P(149,190),P(168,287),P(215,218),P(245,278),P(276,208),P(325,273),P(365,188));
- using(var b=B("#34244D")){g.FillEllipse(b,182,279,28,46);g.FillEllipse(b,302,279,28,46);}
- using(var b=B("#FFFFFF")){g.FillEllipse(b,188,283,9,13);g.FillEllipse(b,308,283,9,13);}
- using(var b=B("#EEA4B7")){g.FillEllipse(b,162,326,43,17);g.FillEllipse(b,307,326,43,17);}
- using(var pen=new Pen(ColorTranslator.FromHtml("#9B526E"),7)){pen.StartCap=LineCap.Round;pen.EndCap=LineCap.Round;g.DrawArc(pen,238,329,37,30,20,140);}
- using(var b=B("#CAB8F6")){g.FillEllipse(b,109,184,42,252);g.FillEllipse(b,360,184,42,252);}
- Poly(g,"#FFF3BF",P(419,357),P(425,376),P(444,382),P(425,388),P(419,407),P(413,388),P(394,382),P(413,376));
+public static class OriginalDragonIcon {
+ public static void Make(string root,string frame){
+ using(var source=Image.FromFile(frame))using(var image=new Bitmap(512,512,PixelFormat.Format32bppArgb)){
+ using(var g=Graphics.FromImage(image))using(var shape=new GraphicsPath()){
+ g.SmoothingMode=SmoothingMode.AntiAlias;g.InterpolationMode=InterpolationMode.HighQualityBicubic;g.Clear(Color.Transparent);
+ shape.AddArc(0,0,96,96,180,90);shape.AddArc(416,0,96,96,270,90);shape.AddArc(416,416,96,96,0,90);shape.AddArc(0,416,96,96,90,90);shape.CloseFigure();g.SetClip(shape);g.DrawImage(source,0,0,512,512);
  }
  image.Save(Path.Combine(root,"dragon.png"),ImageFormat.Png);
  int[] sizes={16,24,32,48,64,128,256};byte[][] data=new byte[sizes.Length][];
@@ -37,4 +28,4 @@ public static class DragonIcon {
  }
 }
 "@
-[DragonIcon]::Make([IO.Path]::GetFullPath($OutputRoot))
+[OriginalDragonIcon]::Make([IO.Path]::GetFullPath($OutputRoot),$frame)
