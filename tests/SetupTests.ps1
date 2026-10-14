@@ -14,12 +14,14 @@ if($config.AppLaunch -ne 'shell:AppsFolder\OpenAI.Codex_test!App' -or $config.Au
 & $setup @common -Action Verify
 $custom=Join-Path $root 'media/custom.txt'
 Set-Content -LiteralPath $custom -Value 'preserve me'
-$linkPath=Join-Path $desktop 'Codex 龙娘启动（简易版）.lnk'
+$shortcutName='Codex 龙娘启动（简易版）.lnk'
+if([Text.Encoding]::Default.GetString([Text.Encoding]::Default.GetBytes($shortcutName)) -ne $shortcutName){$shortcutName='Dragon Codex Boot Easy.lnk'}
+$linkPath=Join-Path $desktop $shortcutName
 $shell=New-Object -ComObject WScript.Shell
 $link=$shell.CreateShortcut($linkPath);$link.TargetPath=Join-Path $env:WINDIR 'explorer.exe';$link.Save()
 & $setup @common -Action Uninstall
 if(!(Test-Path -LiteralPath $custom) -or !(Test-Path -LiteralPath $linkPath)){throw 'Uninstall removed custom files or a changed shortcut.'}
 if(Test-Path -LiteralPath (Join-Path $root 'DragonCodexBoot.exe')){throw 'Uninstall left the installed launcher.'}
-if(Test-Path -LiteralPath (Join-Path $programs 'Codex 龙娘启动（简易版）.lnk')){throw 'Uninstall left its owned shortcut.'}
+if(Test-Path -LiteralPath (Join-Path $programs $shortcutName)){throw 'Uninstall left its owned shortcut.'}
 & $setup @common -Action Uninstall
 Write-Output 'PASS: install, application ID configuration, verification, reinstall, uninstall, repeated uninstall and preservation of custom files/changed shortcuts.'

@@ -55,7 +55,10 @@ foreach($relative in @('DragonCodexBoot.exe','launcher.json','media/startup.mp4'
  if(!(Test-Path -LiteralPath (Join-Path $SourceRoot $relative))){throw "程序包不完整：$relative"}
 }
 if((Test-Path -LiteralPath $InstallRoot) -and !$state -and @(Get-ChildItem -LiteralPath $InstallRoot -Force).Count){throw 'Installation folder already contains unrelated files. No files changed.'}
-$links=@((Join-Path $DesktopRoot 'Codex 龙娘启动（简易版）.lnk'),(Join-Path $ProgramsRoot 'Codex 龙娘启动（简易版）.lnk'))
+$shortcutName='Codex 龙娘启动（简易版）.lnk'
+# WScript.Shell shortcut persistence uses the system code page on some Windows hosts.
+if([Text.Encoding]::Default.GetString([Text.Encoding]::Default.GetBytes($shortcutName)) -ne $shortcutName){$shortcutName='Dragon Codex Boot Easy.lnk'}
+$links=@((Join-Path $DesktopRoot $shortcutName),(Join-Path $ProgramsRoot $shortcutName))
 foreach($path in $links){if((Test-Path -LiteralPath $path) -and !(OwnedShortcut $path)){throw "已有同名快捷方式，已保留：$path"}}
 if(@(Get-Process -Name 'DragonCodexBoot' -ErrorAction SilentlyContinue).Count){throw '请先等启动动画结束，再安装或更新。'}
 New-Item -ItemType Directory -Path $InstallRoot,$DesktopRoot,$ProgramsRoot -Force | Out-Null

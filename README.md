@@ -12,7 +12,7 @@
 
 需要 Windows 10/11 x64、.NET Framework 4.8，并已安装 Windows 版 Codex。无需管理员权限、Node、Python或 API key。Windows N 需要补装媒体功能。
 
-安装器自动识别本机 Codex 应用 ID，把程序复制到 `%LOCALAPPDATA%\DragonCodexBootEasy`，创建当前用户的快捷方式。安装完成后，下载包和解压目录可以删除。已有官方入口继续可用。
+安装器自动识别本机 Codex 应用 ID，把程序复制到 `%LOCALAPPDATA%\DragonCodexBootEasy`，创建当前用户的快捷方式。安装完成后，下载包和解压目录可以删除。已有官方入口继续可用。英文等无法保存中文快捷方式名称的系统自动使用 `Dragon Codex Boot Easy`。
 
 只想试试：解压后直接双击 `Start.cmd` 或 `DragonCodexBoot.exe`，无需安装。便携模式使用随附的标准 Codex 应用标识。
 
@@ -66,3 +66,4 @@
 源码按 [MIT](LICENSE) 分发，保留上游版权声明。完整演示视频与原音轨按上游方式随示例分发，保留 [媒体说明](media/MEDIA_NOTICE.md)；源码 MIT 许可不自动授予视频素材的额外用途权利。详见 [第三方说明](THIRD_PARTY_NOTICES.md)。
 
 独立社区项目，与 OpenAI 无隶属关系。
+
