@@ -18,8 +18,8 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("Dragon Codex Boot")]
 [assembly: AssemblyProduct("Dragon Codex Boot")]
 [assembly: AssemblyDescription("Community animation launcher for the Codex desktop client")]
-[assembly: AssemblyVersion("0.3.0.0")]
-[assembly: AssemblyFileVersion("0.3.0.0")]
+[assembly: AssemblyVersion("0.3.1.0")]
+[assembly: AssemblyFileVersion("0.3.1.0")]
 
 namespace DragonCodexBoot {
  public sealed class Config {
@@ -117,6 +117,8 @@ namespace DragonCodexBoot {
   [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h,int index);
   [DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h,int how);
   [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+
   [DllImport("user32.dll")] public static extern bool SetWindowPos(IntPtr h,IntPtr after,int x,int y,int w,int ht,uint flags);
   [DllImport("user32.dll")] public static extern IntPtr SendMessageTimeout(IntPtr h,uint msg,IntPtr w,IntPtr l,uint flags,uint ms,out IntPtr result);
   [DllImport("user32.dll")] public static extern bool SetProcessDPIAware();
@@ -189,7 +191,9 @@ namespace DragonCodexBoot {
   private double endedAt=-1;
   private int launchAttempts,launchInProgress;
   private double lastLaunchAt=-100;
-  private bool skipping,alignmentMismatchLogged;
+  private bool skipping,alignmentMismatchLogged,handoffPending,handoffFocusObserved;
+  private IntPtr handoffHandle;
+  private double handoffStartedAt,handoffStableAt,lastHandoffCheck=-1;
   private readonly object logLock=new object();
   public BootWindow(Config c,string baseDir) {
    cfg=c;root=baseDir;Title=String.IsNullOrWhiteSpace(c.DisplayName)?"Dragon Codex Boot":c.DisplayName;
@@ -332,6 +336,7 @@ namespace DragonCodexBoot {
    Probe();
    if(wall.Elapsed.TotalSeconds>cfg.MaxWaitSeconds+20) { FailLaunch();return; }
    if(!ready&&wall.Elapsed.TotalSeconds-lastLaunchAt>=8)LaunchApp();
+   if(handoffPending) { CheckHandoff();return; }
    if(skipping) { if(ready)HandOff();return; }
    if(!opened) {
     if(wall.Elapsed.TotalSeconds>12) { Log("media-open-timeout");HandOff(); }
@@ -367,7 +372,7 @@ namespace DragonCodexBoot {
    if(endedAt>=0&&wall.Elapsed.TotalSeconds-endedAt>.25)HandOff();
   }
   private void HandOff() {
-   if(closing)return;
+   if(closing||handoffPending)return;
    IntPtr app=Native.FindApp(cfg);
    if(app==IntPtr.Zero||!Native.Responsive(app)) {
     // Skipping must not cancel the application launch or its readiness checks.
@@ -378,10 +383,41 @@ namespace DragonCodexBoot {
     if(wall.Elapsed.TotalSeconds-lastLaunchAt>=3)LaunchApp();
     return;
    }
-   closing=true;timer.Stop();DropThumbnail();
+   handoffPending=true;skipping=false;
+   handoffStartedAt=wall.Elapsed.TotalSeconds;
+   media.Stop();DropThumbnail();Hide();
+   Log("handoff-monitor-started window="+app.ToInt64());
+   CheckHandoff();
+  }
+  private void CheckHandoff() {
+   double now=wall.Elapsed.TotalSeconds;
+   if(now-lastHandoffCheck<.25)return;
+   lastHandoffCheck=now;
+   IntPtr app=Native.FindApp(cfg);
+   if(app==IntPtr.Zero||!Native.Responsive(app)) {
+    if(handoffHandle!=IntPtr.Zero)Log("handoff-window-disappeared window="+handoffHandle.ToInt64());
+    handoffHandle=IntPtr.Zero;handoffFocusObserved=false;handoffStableAt=now;
+    if(now-lastLaunchAt>=3)LaunchApp();
+    return;
+   }
+   if(app!=handoffHandle) {
+    handoffHandle=app;handoffStableAt=now;handoffFocusObserved=false;
+    Log("handoff-window-selected window="+app.ToInt64());
+   }
    if(Native.IsIconic(app))Native.ShowWindow(app,9);
-   Close();bool foreground=Native.SetForegroundWindow(app);
-   Log("handed-off-to-real-window foreground="+foreground);
+   if(Native.GetForegroundWindow()==app)handoffFocusObserved=true;
+   if(!handoffFocusObserved) {
+    bool requested=Native.SetForegroundWindow(app);
+    handoffFocusObserved=Native.GetForegroundWindow()==app;
+    if(!handoffFocusObserved&&now-lastLaunchAt>=3)LaunchApp();
+    if(now-handoffStableAt<.3)Log("handoff-focus requested="+requested+" observed="+handoffFocusObserved);
+   }
+   // Keep watching for replacement windows after the animation disappears.
+   // Once foreground was observed, a deliberate switch to another app is respected.
+   if(now-handoffStartedAt>=8&&now-handoffStableAt>=2&&handoffFocusObserved) {
+    closing=true;timer.Stop();Close();
+    Log("handed-off-to-stable-window window="+app.ToInt64()+" foregroundObserved=True monitoredSeconds="+(now-handoffStartedAt).ToString("F1"));
+   }
   }
   private void FailLaunch() {
    if(closing)return;closing=true;timer.Stop();DropThumbnail();Close();
