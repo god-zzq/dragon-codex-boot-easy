@@ -1,4 +1,4 @@
-{
+﻿{
   "AutoReplaceEntrypoints": false,
   "ScanAllLocalDrives": false,
   "Video": "media/startup.mp4",
@@ -46,6 +46,5 @@
       "Height": 1
     }
   ],
-  "DisplayName": "Codex · Dragon",
-  "FastStart": true
+  "DisplayName": "Codex · Dragon"
 }

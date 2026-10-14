@@ -18,15 +18,14 @@ using System.Windows.Threading;
 [assembly: AssemblyTitle("Dragon Codex Boot")]
 [assembly: AssemblyProduct("Dragon Codex Boot")]
 [assembly: AssemblyDescription("Community animation launcher for the Codex desktop client")]
-[assembly: AssemblyVersion("0.3.4.0")]
-[assembly: AssemblyFileVersion("0.3.4.0")]
+[assembly: AssemblyVersion("0.3.5.0")]
+[assembly: AssemblyFileVersion("0.3.5.0")]
 
 namespace DragonCodexBoot {
  public sealed class Config {
-  public Config() { AutoReplaceEntrypoints=false; ScanAllLocalDrives=false; FastStart=true; }
+  public Config() { AutoReplaceEntrypoints=false; ScanAllLocalDrives=false; }
   public bool AutoReplaceEntrypoints { get; set; }
   public bool ScanAllLocalDrives { get; set; }
-  public bool FastStart { get; set; }
   public string DisplayName { get; set; }
   public string Video { get; set; }
   public string AppLaunch { get; set; }
@@ -203,7 +202,6 @@ namespace DragonCodexBoot {
   private int launchAttempts,launchInProgress;
   private double lastLaunchAt=-100;
   private volatile bool activationAccepted;
-  private bool fastForwarded;
   private bool skipping,alignmentMismatchLogged,handoffPending,handoffFocusObserved;
   private IntPtr handoffHandle;
   private double handoffStartedAt,handoffStableAt,lastHandoffCheck=-1;
@@ -365,13 +363,6 @@ namespace DragonCodexBoot {
     return;
    }
    double t=media.Position.TotalSeconds;
-   if(cfg.FastStart&&ready&&!fastForwarded&&!startedFade&&wall.Elapsed.TotalSeconds>=1) {
-    fastForwarded=true;
-    if(t<cfg.HoldAt) {
-     media.Position=TimeSpan.FromSeconds(cfg.HoldAt);t=cfg.HoldAt;
-     Log("fast-start-jumped-to-handoff-segment");
-    }
-   }
    if(!ready&&!startedFade&&t>=cfg.HoldAt) {
     if(!holding) { media.Pause();media.Position=TimeSpan.FromSeconds(cfg.HoldAt);holding=true;Log("waiting-for-window"); }
     status.Text="Codex正在启动…  Esc跳过";status.Visibility=Visibility.Visible;

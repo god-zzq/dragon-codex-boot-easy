@@ -1,3 +1,7 @@
+## 0.3.5
+
+- Always play the full animation. Remove the automatic jump triggered by window responsiveness.
+
 ## 0.3.4
 
 - Replace the drawn avatar with a face crop from the bundled dragon-girl animation, with rounded corners and seven icon sizes.
